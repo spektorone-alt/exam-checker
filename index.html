@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>בודק הבחינות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Assistant:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F2E7;
+    --paper-card:#FFFFFF;
+    --ink:#1E2A3A;
+    --ink-light:#5B6472;
+    --ink-faint:#93989F;
+    --red:#B23A2E;
+    --red-light:#D6564A;
+    --red-wash:#FBEAE7;
+    --gold:#B8923F;
+    --gold-wash:#F3EAD3;
+    --border:#E4DBC8;
+    --green:#3E7C5C;
+    --shadow: 0 1px 2px rgba(30,42,58,.04), 0 8px 24px rgba(30,42,58,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 1px 1px, rgba(30,42,58,.035) 1px, transparent 0) 0 0/22px 22px,
+      var(--paper);
+    color:var(--ink);
+    font-family:'Assistant',sans-serif;
+    min-height:100vh;
+    padding:32px 18px 80px;
+  }
+  .wrap{max-width:940px;margin:0 auto;}
+
+  .masthead{
+    text-align:center;
+    margin-bottom:34px;
+    padding-bottom:22px;
+    border-bottom:2px solid var(--ink);
+    position:relative;
+  }
+  .masthead .eyebrow{
+    font-size:12.5px;
+    letter-spacing:.14em;
+    color:var(--red);
+    font-weight:700;
+    text-transform:uppercase;
+  }
+  .masthead h1{
+    font-family:'Frank Ruhl Libre',serif;
+    font-weight:900;
+    font-size:38px;
+    margin:6px 0 4px;
+    color:var(--ink);
+  }
+  .masthead p{
+    color:var(--ink-light);
+    font-size:15px;
+    margin:0;
+  }
+
+  .stepper{
+    display:flex;
+    gap:10px;
+    margin-bottom:28px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  .step-pill{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 16px;
+    border-radius:999px;
+    font-size:13.5px;
+    font-weight:600;
+    background:var(--paper-card);
+    border:1px solid var(--border);
+    color:var(--ink-faint);
+    transition:.2s;
+  }
+  .step-pill .num{
+    width:20px;height:20px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11.5px;font-weight:800;
+    background:var(--border);color:#fff;
+  }
+  .step-pill.active{color:var(--ink);border-color:var(--red);}
+  .step-pill.active .num{background:var(--red);}
+  .step-pill.done{color:var(--ink);}
+  .step-pill.done .num{background:var(--green);}
+
+  .card{
+    background:var(--paper-card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:26px;
+    margin-bottom:20px;
+  }
+  .card h2{
+    font-family:'Frank Ruhl Libre',serif;
+    font-size:21px;
+    margin:0 0 4px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .card h2 .badge{
+    background:var(--ink);color:#fff;
+    width:26px;height:26px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:13px;font-family:'Assistant';font-weight:800;
+  }
+  .card .hint{color:var(--ink-light);font-size:13.5px;margin:0 0 18px;}
+
+  .dropzone{
+    border:2px dashed var(--border);
+    border-radius:12px;
+    padding:26px;
+    text-align:center;
+    cursor:pointer;
+    transition:.15s;
+    background:#FCFAF5;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--red-light);
+    background:var(--red-wash);
+  }
+  .dropzone .icon{font-size:26px;margin-bottom:6px;}
+  .dropzone .main{font-weight:700;font-size:15px;}
+  .dropzone .sub{font-size:12.5px;color:var(--ink-faint);margin-top:2px;}
+  .dropzone.small{padding:16px;}
+  .dropzone.small .icon{font-size:20px;margin-bottom:3px;}
+  .dropzone.small .main{font-size:13px;}
+  input[type=file]{display:none;}
+
+  .file-chip{
+    display:flex;align-items:center;gap:10px;
+    background:var(--gold-wash);
+    border:1px solid var(--gold);
+    border-radius:10px;
+    padding:10px 14px;
+    margin-top:12px;
+    font-size:14px;
+  }
+  .file-chip .x{
+    margin-right:auto;cursor:pointer;color:var(--red);font-weight:800;
+    padding:2px 8px;border-radius:6px;
+  }
+  .file-chip .x:hover{background:rgba(178,58,46,.12);}
+
+  .pages-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+    gap:10px;
+    margin-top:14px;
+  }
+  .page-thumb{
+    position:relative;
+    border:1px solid var(--border);
+    border-radius:9px;
+    overflow:hidden;
+    background:#fff;
+    box-shadow:var(--shadow);
+  }
+  .page-thumb img{width:100%;height:110px;object-fit:cover;display:block;}
+  .page-thumb .page-num{
+    position:absolute;top:5px;right:5px;
+    background:var(--ink);color:#fff;
+    font-size:10.5px;font-weight:800;
+    padding:1px 6px;border-radius:999px;
+  }
+  .page-thumb .ctrls{
+    display:flex;justify-content:space-between;
+    padding:4px 6px;background:#FAF7F0;
+    border-top:1px solid var(--border);
+  }
+  .page-thumb .ctrls button{
+    border:none;background:none;cursor:pointer;
+    font-size:12px;color:var(--ink-light);padding:2px 4px;border-radius:5px;
+  }
+  .page-thumb .ctrls button:hover{background:var(--border);color:var(--ink);}
+  .page-thumb .ctrls .del{color:var(--red);}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13.5px;font-weight:700;margin-bottom:6px;color:var(--ink);}
+  .field input[type=text]{
+    width:100%;padding:10px 12px;
+    border:1px solid var(--border);border-radius:8px;
+    font-family:'Assistant';font-size:14.5px;background:#FCFAF5;
+  }
+  .field input[type=text]:focus{outline:none;border-color:var(--red-light);}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--ink);color:#fff;
+    border:none;border-radius:9px;
+    padding:13px 26px;
+    font-family:'Assistant';font-weight:700;font-size:15px;
+    cursor:pointer;transition:.15s;
+  }
+  .btn:hover{background:#101825;transform:translateY(-1px);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+  .btn.primary{background:var(--red);}
+  .btn.primary:hover{background:#951F16;}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--border);}
+  .btn.ghost:hover{background:var(--gold-wash);}
+  .btn.small{padding:8px 16px;font-size:13.5px;}
+
+  .actions-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:6px;}
+
+  .error-box{
+    background:var(--red-wash);border:1px solid var(--red-light);
+    color:#7A241A;padding:14px 16px;border-radius:10px;
+    font-size:14px;margin-top:14px;white-space:pre-wrap;
+  }
+
+  .loading-box{text-align:center;padding:34px 20px;}
+  .pen{font-size:34px;display:inline-block;animation:write 1.1s ease-in-out infinite;}
+  @keyframes write{
+    0%,100%{transform:rotate(-8deg) translateY(0);}
+    50%{transform:rotate(4deg) translateY(-4px);}
+  }
+  .loading-box .msg{margin-top:14px;font-weight:700;color:var(--ink-light);}
+
+  .stamp-wrap{display:flex;justify-content:center;margin:6px 0 26px;}
+  .stamp{
+    width:150px;height:150px;border-radius:50%;
+    border:4px solid var(--red);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transform:rotate(-7deg);
+    color:var(--red);
+    position:relative;
+  }
+  .stamp::before{
+    content:"";position:absolute;inset:8px;
+    border:1.5px solid var(--red);border-radius:50%;
+    opacity:.55;
+  }
+  .stamp .score{font-family:'Frank Ruhl Libre',serif;font-weight:900;font-size:42px;line-height:1;}
+  .stamp .of100{font-size:12px;font-weight:700;letter-spacing:.06em;margin-top:2px;}
+  .stamp.mini{width:64px;height:64px;border-width:3px;}
+  .stamp.mini .score{font-size:19px;}
+  .stamp.mini .of100{font-size:8px;}
+  .stamp.mini::before{inset:5px;}
+
+  .warn-note{text-align:center;font-size:12.5px;color:var(--gold);font-weight:700;margin-bottom:18px;}
+
+  .q-block{border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;background:#fff;}
+  .q-head{background:var(--paper);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+  .q-head .q-title{font-family:'Frank Ruhl Libre',serif;font-weight:700;font-size:16.5px;}
+  .q-total{font-weight:800;font-size:15px;color:var(--ink);}
+
+  .sec-row{display:grid;grid-template-columns:34px 1fr 100px;gap:14px;align-items:start;padding:14px 18px;border-bottom:1px dashed var(--border);}
+  .sec-row:last-child{border-bottom:none;}
+  .sec-label{
+    width:34px;height:34px;border-radius:50%;
+    border:2px solid var(--red);color:var(--red);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;font-family:'Frank Ruhl Libre',serif;
+    transform:rotate(-4deg);
+  }
+  .sec-comment{
+    font-style:italic;color:var(--red);font-size:13.5px;line-height:1.5;width:100%;
+    border:none;border-bottom:1px dashed var(--red-light);background:transparent;resize:vertical;min-height:32px;
+    font-family:'Assistant';padding:4px 2px;
+  }
+  .sec-comment:focus{outline:none;background:var(--red-wash);}
+  .sec-comment::placeholder{color:var(--ink-faint);font-style:italic;}
+  .sec-points{display:flex;align-items:center;gap:3px;justify-content:flex-end;}
+  .sec-points input{
+    width:48px;text-align:center;border:1px solid var(--border);border-radius:7px;
+    padding:6px 4px;font-weight:800;font-size:14px;font-family:'Assistant';color:var(--ink);
+  }
+  .sec-points input:focus{outline:none;border-color:var(--red-light);}
+  .sec-points .max{color:var(--ink-faint);font-size:13px;}
+
+  .general-note{background:var(--gold-wash);border:1px solid var(--gold);border-radius:12px;padding:16px 18px;margin-top:6px;margin-bottom:8px;}
+  .general-note label{display:block;font-size:12.5px;font-weight:800;color:#8A6D28;margin-bottom:6px;}
+  .general-note textarea{width:100%;border:none;background:transparent;resize:vertical;min-height:50px;font-family:'Assistant';font-size:14px;color:var(--ink);}
+  .general-note textarea:focus{outline:none;}
+
+  .student-panel{
+    border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;background:#FCFAF5;
+  }
+  .student-panel-head{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
+  .student-panel-head input[type=text]{
+    flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:'Assistant';font-size:14px;background:#fff;
+  }
+  .student-panel-head input[type=text]:focus{outline:none;border-color:var(--red-light);}
+  .student-remove{
+    background:none;border:1px solid var(--border);color:var(--red);border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:700;
+  }
+  .student-remove:hover{background:var(--red-wash);}
+  .add-student-btn{
+    width:100%;padding:12px;border:2px dashed var(--border);border-radius:10px;background:none;color:var(--ink-light);
+    font-weight:700;cursor:pointer;font-family:'Assistant';font-size:14px;
+  }
+  .add-student-btn:hover{border-color:var(--red-light);color:var(--red);background:var(--red-wash);}
+
+  .progress-list{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+  .progress-item{
+    display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border);border-radius:9px;background:#fff;font-size:14px;
+  }
+  .progress-item .status-icon{width:22px;text-align:center;}
+  .progress-item .p-name{font-weight:700;flex:1;}
+  .progress-item.status-grading{border-color:var(--gold);background:var(--gold-wash);}
+  .progress-item.status-done{border-color:var(--green);}
+  .progress-item.status-error{border-color:var(--red-light);background:var(--red-wash);}
+
+  .summary-table{width:100%;border-collapse:collapse;margin-bottom:8px;}
+  .summary-table th, .summary-table td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--border);font-size:14px;}
+  .summary-table th{font-family:'Frank Ruhl Libre',serif;font-weight:700;color:var(--ink-light);font-size:13px;}
+  .summary-table td.score-cell{font-weight:800;}
+  .summary-row{cursor:pointer;}
+  .summary-row:hover{background:var(--paper);}
+
+  details.student-result{border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;background:#fff;}
+  details.student-result summary{
+    list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:14px;background:var(--paper);
+  }
+  details.student-result summary::-webkit-details-marker{display:none;}
+  details.student-result summary .sname{font-family:'Frank Ruhl Libre',serif;font-weight:700;font-size:16px;flex:1;}
+  details.student-result summary .arrow{transition:.2s;color:var(--ink-faint);}
+  details.student-result[open] summary .arrow{transform:rotate(90deg);}
+  details.student-result .det-body{padding:22px;}
+
+  @media print{
+    body{padding:0;background:#fff;}
+    .no-print{display:none !important;}
+    .card{box-shadow:none;border:1px solid #ccc;}
+    .stepper{display:none;}
+    details.student-result{page-break-inside:avoid;}
+  }
+  @media (max-width:520px){
+    .stamp{width:120px;height:120px;}
+    .stamp .score{font-size:32px;}
+    .sec-row{grid-template-columns:28px 1fr 80px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="eyebrow">בדיקה ממוחשבת · מחוון מותאם אישית</div>
+    <h1>בודק הבחינות</h1>
+    <p>העלאת מחוון וקבוצת מחברות סרוקות — קבלת ניקוד מפורט והערות תיקון לכל סטודנט</p>
+  </div>
+
+  <div class="stepper no-print" id="stepper"></div>
+
+  <div class="card">
+    <h2><span class="badge">1</span> מחוון (מפתח בדיקה)</h2>
+    <p class="hint">קובץ אחד, משותף לכל הכיתה — עם השאלות, התשובות הנכונות וחלוקת הניקוד לכל שאלה וסעיף (PDF, או תמונה סרוקה).</p>
+    <div class="dropzone" id="dz-manhal">
+      <div class="icon">📄</div>
+      <div class="main">גררו לכאן קובץ מחוון, או לחצו לבחירה</div>
+      <div class="sub">PDF או תמונה</div>
+    </div>
+    <input type="file" id="input-manhal" accept="application/pdf,image/*">
+    <div id="manhal-chip"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="badge">2</span> מחברות הסטודנטים</h2>
+    <p class="hint">בחרו יחד את כל עמודי כל המחברות הסרוקות — האפליקציה תזהה אוטומטית לפי שם הקובץ אילו עמודים שייכים לאותו סטודנט (למשל <code>204567891_1.jpg</code> ו-<code>204567891_2.jpg</code> יתקבצו יחד), ותפתח כרטיס לכל סטודנט בעצמה.</p>
+    <div class="dropzone" id="dz-bulk">
+      <div class="icon">🗂️</div>
+      <div class="main">גררו לכאן את כל עמודי כל המחברות יחד, או לחצו לבחירה</div>
+      <div class="sub">אפשר לבחור עשרות קבצים בבת אחת</div>
+    </div>
+    <input type="file" id="input-bulk" accept="image/*,application/pdf" multiple>
+    <p class="hint" style="margin:14px 0 0;">אפשר גם לתקן ידנית למטה: לשנות שם, להעביר/למחוק עמודים, או להוסיף סטודנט בנפרד.</p>
+    <div id="students-list"></div>
+    <button class="add-student-btn" id="btn-add-student">+ הוסף סטודנט ידנית</button>
+  </div>
+
+  <div class="card no-print" id="grade-card">
+    <div class="actions-row">
+      <button class="btn primary" id="btn-grade" disabled>בדוק את כל הסטודנטים</button>
+      <button class="btn ghost" id="btn-reset">איפוס</button>
+    </div>
+    <div id="progress-slot"></div>
+    <div id="error-slot"></div>
+  </div>
+
+  <div id="results-slot"></div>
+
+</div>
+
+<script>
+(function(){
+  const state = { manhal:null, students:[] };
+  let idSeq = 1;
+
+  const $ = sel => document.querySelector(sel);
+  const stepperEl = $('#stepper');
+  const manhalChip = $('#manhal-chip');
+  const studentsList = $('#students-list');
+  const btnGrade = $('#btn-grade');
+  const errorSlot = $('#error-slot');
+  const progressSlot = $('#progress-slot');
+  const resultsSlot = $('#results-slot');
+
+  function fileToBase64(file){
+    return new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('קריאת הקובץ נכשלה'));
+      r.readAsDataURL(file);
+    });
+  }
+  function fileToDataUrl(file){
+    return new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = () => rej(new Error('קריאת הקובץ נכשלה'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  function anyStudentHasPages(){ return state.students.some(s=>s.pages.length>0); }
+  function anyResultsDone(){ return state.students.some(s=>s.status==='done'); }
+  function renderStepper(){
+    const step1 = !!state.manhal;
+    const step2 = anyStudentHasPages();
+    const step3 = anyResultsDone();
+    stepperEl.innerHTML = `
+      <div class="step-pill ${step1?'done':'active'}"><span class="num">1</span> מחוון</div>
+      <div class="step-pill ${step2?'done':(step1?'active':'')}"><span class="num">2</span> מחברות</div>
+      <div class="step-pill ${step3?'done':''}"><span class="num">3</span> תוצאות</div>
+    `;
+    btnGrade.disabled = !(step1 && step2);
+  }
+
+  const dzManhal = $('#dz-manhal');
+  const inputManhal = $('#input-manhal');
+  dzManhal.addEventListener('click', ()=>inputManhal.click());
+  dzManhal.addEventListener('dragover', e=>{e.preventDefault(); dzManhal.classList.add('drag');});
+  dzManhal.addEventListener('dragleave', ()=>dzManhal.classList.remove('drag'));
+  dzManhal.addEventListener('drop', e=>{
+    e.preventDefault(); dzManhal.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleManhal(e.dataTransfer.files[0]);
+  });
+  inputManhal.addEventListener('change', e=>{
+    if(e.target.files.length) handleManhal(e.target.files[0]);
+  });
+  async function handleManhal(file){
+    try{
+      const base64 = await fileToBase64(file);
+      const kind = file.type === 'application/pdf' ? 'document' : 'image';
+      state.manhal = {name:file.name, base64, mediaType:file.type||'application/pdf', kind};
+      renderManhalChip();
+      renderStepper();
+    }catch(err){
+      showError('שגיאה בטעינת המחוון: '+err.message);
+    }
+  }
+  function renderManhalChip(){
+    if(!state.manhal){ manhalChip.innerHTML=''; return; }
+    manhalChip.innerHTML = `
+      <div class="file-chip">
+        <span>📄</span>
+        <span>${escapeHtml(state.manhal.name)}</span>
+        <span class="x" id="manhal-x">✕</span>
+      </div>`;
+    $('#manhal-x').addEventListener('click', ()=>{
+      state.manhal = null;
+      renderManhalChip();
+      renderStepper();
+    });
+  }
+
+  function addStudent(){
+    state.students.push({id: idSeq++, name:'', pages:[], results:null, status:'idle', errorMsg:''});
+    renderStudents();
+    renderStepper();
+  }
+  function removeStudent(id){
+    state.students = state.students.filter(s=>s.id!==id);
+    renderStudents();
+    renderStepper();
+  }
+  function getStudent(id){ return state.students.find(s=>s.id===id); }
+
+  function renderStudents(){
+    studentsList.innerHTML = state.students.map((st, idx)=>`
+      <div class="student-panel" data-sid="${st.id}">
+        <div class="student-panel-head">
+          <span style="font-weight:800;color:var(--ink-faint);">#${idx+1}</span>
+          <input type="text" class="student-name-input" data-sid="${st.id}" placeholder="שם / מספר זהות הסטודנט" value="${escapeHtml(st.name)}">
+          <button class="student-remove" data-sid="${st.id}">✕</button>
+        </div>
+        <div class="dropzone small" data-sid="${st.id}" data-role="dz">
+          <div class="icon">🖼️</div>
+          <div class="main">גררו עמודי מחברת, או לחצו לבחירה</div>
+        </div>
+        <input type="file" class="student-file-input" data-sid="${st.id}" accept="image/*,application/pdf" multiple style="display:none;">
+        <div class="pages-grid" data-sid="${st.id}" data-role="grid"></div>
+      </div>
+    `).join('');
+
+    studentsList.querySelectorAll('.student-name-input').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        const sid = parseInt(e.target.dataset.sid);
+        const st = getStudent(sid);
+        if(st) st.name = e.target.value;
+      });
+    });
+    studentsList.querySelectorAll('.student-remove').forEach(btn=>{
+      btn.addEventListener('click', e=>removeStudent(parseInt(e.target.dataset.sid)));
+    });
+    studentsList.querySelectorAll('[data-role="dz"]').forEach(dz=>{
+      const sid = parseInt(dz.dataset.sid);
+      const fileInput = studentsList.querySelector(`.student-file-input[data-sid="${sid}"]`);
+      dz.addEventListener('click', ()=>fileInput.click());
+      dz.addEventListener('dragover', e=>{e.preventDefault(); dz.classList.add('drag');});
+      dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+      dz.addEventListener('drop', e=>{
+        e.preventDefault(); dz.classList.remove('drag');
+        if(e.dataTransfer.files.length) handleStudentPages(sid, e.dataTransfer.files);
+      });
+    });
+    studentsList.querySelectorAll('.student-file-input').forEach(inp=>{
+      inp.addEventListener('change', e=>{
+        const sid = parseInt(e.target.dataset.sid);
+        if(e.target.files.length) handleStudentPages(sid, e.target.files);
+      });
+    });
+
+    state.students.forEach(st=>renderStudentPages(st.id));
+  }
+
+  // Extracts the "student key" from a filename by stripping the extension and,
+  // if present, a trailing page-number suffix separated by space/underscore/dash
+  // (e.g. "204567891_1.jpg" / "204567891-2.png" / "204567891 עמוד 3.jpg" -> "204567891").
+  // Requires a real separator before the digits, so a bare ID like "204567891.jpg"
+  // (no page suffix) is left intact instead of being stripped down to "".
+  function extractGroupKey(filename){
+    let base = filename.replace(/\.[^/.]+$/, '').trim();
+    const m = base.match(/^(.{3,}?)[\s_\-]+\(?(?:page|עמוד|עמ|p)?\s*(\d{1,3})\)?\s*$/i);
+    if(m && m[1].trim().length>=3) return m[1].trim();
+    return base;
+  }
+  function extractPageNum(filename){
+    let base = filename.replace(/\.[^/.]+$/, '').trim();
+    const m = base.match(/[\s_\-]+\(?(?:page|עמוד|עמ|p)?\s*(\d{1,3})\)?\s*$/i);
+    return m ? parseInt(m[1],10) : null;
+  }
+  function nameFromFilename(filename){ return extractGroupKey(filename); }
+
+  async function handleBulkFiles(fileList){
+    try{
+      const filesArr = Array.from(fileList);
+      const read = [];
+      for(let i=0;i<filesArr.length;i++){
+        const file = filesArr[i];
+        const base64 = await fileToBase64(file);
+        const dataUrl = await fileToDataUrl(file);
+        const kind = file.type === 'application/pdf' ? 'document' : 'image';
+        read.push({
+          file, base64, dataUrl, kind, order:i,
+          groupKey: extractGroupKey(file.name),
+          pageNum: extractPageNum(file.name)
+        });
+      }
+
+      const groups = new Map();
+      read.forEach(item=>{
+        const k = item.groupKey.toLowerCase();
+        if(!groups.has(k)) groups.set(k, {displayName:item.groupKey, items:[]});
+        groups.get(k).items.push(item);
+      });
+      groups.forEach(g=>{
+        g.items.sort((a,b)=>{
+          if(a.pageNum!=null && b.pageNum!=null) return a.pageNum-b.pageNum;
+          if(a.pageNum!=null) return -1;
+          if(b.pageNum!=null) return 1;
+          return a.order-b.order;
+        });
+      });
+
+      // drop empty placeholder students (no name, no pages) before merging in the new groups
+      state.students = state.students.filter(s => !(s.pages.length===0 && !s.name));
+
+      groups.forEach(g=>{
+        let st = state.students.find(s => (s.name||'').trim().toLowerCase() === g.displayName.trim().toLowerCase());
+        if(!st){
+          st = {id: idSeq++, name:g.displayName, pages:[], results:null, status:'idle', errorMsg:''};
+          state.students.push(st);
+        }
+        g.items.forEach(it=>{
+          st.pages.push({id:idSeq++, name:it.file.name, base64:it.base64, mediaType: it.file.type||'image/jpeg', kind:it.kind, dataUrl:it.dataUrl});
+        });
+      });
+
+      renderStudents();
+      renderStepper();
+    }catch(err){
+      showError('שגיאה בטעינת הקבצים: '+err.message);
+    }
+  }
+
+  async function handleStudentPages(sid, fileList){
+    const st = getStudent(sid);
+    if(!st) return;
+    try{
+      const hadNoName = !st.name;
+      let firstNewFileName = null;
+      for(const file of fileList){
+        const base64 = await fileToBase64(file);
+        const dataUrl = await fileToDataUrl(file);
+        const kind = file.type === 'application/pdf' ? 'document' : 'image';
+        st.pages.push({id:idSeq++, name:file.name, base64, mediaType:file.type||'image/jpeg', kind, dataUrl});
+        if(firstNewFileName === null) firstNewFileName = file.name;
+      }
+      if(hadNoName && firstNewFileName){
+        st.name = nameFromFilename(firstNewFileName);
+        const nameInput = studentsList.querySelector(`.student-name-input[data-sid="${sid}"]`);
+        if(nameInput) nameInput.value = st.name;
+      }
+      renderStudentPages(sid);
+      renderStepper();
+    }catch(err){
+      showError('שגיאה בטעינת התמונות: '+err.message);
+    }
+  }
+
+  function renderStudentPages(sid){
+    const st = getStudent(sid);
+    const grid = studentsList.querySelector(`.pages-grid[data-sid="${sid}"]`);
+    if(!st || !grid) return;
+    grid.innerHTML = st.pages.map((p, idx)=>`
+      <div class="page-thumb" data-pid="${p.id}">
+        <span class="page-num">${idx+1}</span>
+        ${p.kind==='image'
+          ? `<img src="${p.dataUrl}" alt="עמוד ${idx+1}">`
+          : `<div style="height:110px;display:flex;align-items:center;justify-content:center;font-size:28px;background:#FAF7F0;">📄</div>`
+        }
+        <div class="ctrls">
+          <button data-act="up">↑</button>
+          <button data-act="down">↓</button>
+          <button data-act="del" class="del">✕</button>
+        </div>
+      </div>
+    `).join('');
+    grid.querySelectorAll('.page-thumb').forEach(el=>{
+      const pid = parseInt(el.dataset.pid);
+      el.querySelector('[data-act=up]').addEventListener('click', ()=>movePage(sid,pid,-1));
+      el.querySelector('[data-act=down]').addEventListener('click', ()=>movePage(sid,pid,1));
+      el.querySelector('[data-act=del]').addEventListener('click', ()=>delPage(sid,pid));
+    });
+  }
+  function movePage(sid, pid, dir){
+    const st = getStudent(sid);
+    const i = st.pages.findIndex(p=>p.id===pid);
+    const j = i+dir;
+    if(j<0 || j>=st.pages.length) return;
+    [st.pages[i], st.pages[j]] = [st.pages[j], st.pages[i]];
+    renderStudentPages(sid);
+  }
+  function delPage(sid, pid){
+    const st = getStudent(sid);
+    st.pages = st.pages.filter(p=>p.id!==pid);
+    renderStudentPages(sid);
+    renderStepper();
+  }
+
+  const dzBulk = $('#dz-bulk');
+  const inputBulk = $('#input-bulk');
+  dzBulk.addEventListener('click', ()=>inputBulk.click());
+  dzBulk.addEventListener('dragover', e=>{e.preventDefault(); dzBulk.classList.add('drag');});
+  dzBulk.addEventListener('dragleave', ()=>dzBulk.classList.remove('drag'));
+  dzBulk.addEventListener('drop', e=>{
+    e.preventDefault(); dzBulk.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleBulkFiles(e.dataTransfer.files);
+  });
+  inputBulk.addEventListener('change', e=>{
+    if(e.target.files.length) handleBulkFiles(e.target.files);
+    inputBulk.value = '';
+  });
+
+  $('#btn-add-student').addEventListener('click', addStudent);
+
+  btnGrade.addEventListener('click', gradeAll);
+  $('#btn-reset').addEventListener('click', resetAll);
+
+  function showError(msg){ errorSlot.innerHTML = `<div class="error-box">${escapeHtml(msg)}</div>`; }
+  function clearError(){ errorSlot.innerHTML=''; }
+
+  function buildPrompt(){
+    return `אתה בודק בחינות מומחה ומחמיר אך הוגן. קיבלת שני סוגי חומר:
+1. מחוון (מפתח בדיקה) - מסמך ובו השאלות, התשובות הנכונות, וחלוקת הניקוד המדויקת לכל שאלה ולכל סעיף בתוך שאלה. סכום כל הניקוד במחוון אמור להסתכם ב-100.
+2. תמונות סרוקות של דף/י התשובות שכתב סטודנט מסוים בכתב יד, לפי סדר העמודים.
+
+המשימה שלך:
+- עבור על כל שאלה וכל סעיף במחוון.
+- קרא את תשובת הסטודנט המתאימה (גם אם כתב היד קשה לקריאה, עשה כמיטב יכולתך; אם ממש לא ניתן לפענח - ציין זאת בהערה ותן 0 נקודות לאותו סעיף).
+- קבע ניקוד לכל סעיף בהתאם למידת הנכונות והשלמות של התשובה, מתוך הניקוד המקסימלי שנקבע לאותו סעיף במחוון.
+- אם הניקוד אינו מלא, כתוב הערה קצרה וממוקדת (משפט או שניים) המסבירה מה חסר או שגוי בתשובת הסטודנט. אם הניקוד מלא, השאר את שדה ההערה כמחרוזת ריקה.
+- סכום כל הניקוד שניתן הוא הציון הסופי מתוך 100.
+
+השב אך ורק במבנה JSON תקין הבא, ללא שום טקסט נוסף לפני או אחרי, ללא markdown, ללא גדרות קוד:
+
+{
+  "student_identifier": "string או null",
+  "questions": [
+    {
+      "number": "1",
+      "topic": "כותרת קצרה של נושא השאלה",
+      "sections": [
+        {"label": "א", "max_points": 10, "awarded_points": 7, "comment": "הסבר קצר אם לא ניקוד מלא, אחרת מחרוזת ריקה"}
+      ]
+    }
+  ],
+  "total_max_points": 100,
+  "total_awarded": 87,
+  "general_comment": "משפט או שניים של משוב כללי על הבחינה כולה"
+}`;
+  }
+
+  function parseGradingJson(text){
+    let clean = text.trim();
+    clean = clean.replace(/```json/gi,'').replace(/```/g,'').trim();
+    try{ return JSON.parse(clean); }catch(e){}
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if(start>=0 && end>start){
+      const slice = clean.slice(start, end+1);
+      try{ return JSON.parse(slice); }catch(e){}
+    }
+    return null;
+  }
+
+  function normalizeResults(raw){
+    const questions = (raw.questions||[]).map((q,qi)=>({
+      number: q.number != null ? String(q.number) : String(qi+1),
+      topic: q.topic || '',
+      sections: (q.sections||[]).map((s,si)=>({
+        label: s.label || String(si+1),
+        max_points: Number(s.max_points)||0,
+        awarded_points: Number(s.awarded_points)||0,
+        comment: s.comment || ''
+      }))
+    }));
+    return { student_identifier: raw.student_identifier || null, questions, general_comment: raw.general_comment || '' };
+  }
+
+  async function gradeOneStudent(st){
+    const content = [];
+    content.push({type: state.manhal.kind, source:{type:'base64', media_type: state.manhal.mediaType, data: state.manhal.base64}});
+    st.pages.forEach(p=>{
+      content.push({type: p.kind, source:{type:'base64', media_type: p.mediaType, data: p.base64}});
+    });
+    content.push({type:'text', text: buildPrompt()});
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens: 8000,
+        messages:[{role:"user", content}]
+      })
+    });
+    if(!response.ok) throw new Error('שגיאת שרת ('+response.status+')');
+    const data = await response.json();
+    const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const parsed = parseGradingJson(textBlocks);
+    if(!parsed) throw new Error('לא ניתן היה לפרש את תשובת המערכת');
+    return normalizeResults(parsed);
+  }
+
+  async function gradeAll(){
+    clearError();
+    const toGrade = state.students.filter(s=>s.pages.length>0);
+    if(!state.manhal || toGrade.length===0) return;
+    btnGrade.disabled = true;
+    resultsSlot.innerHTML = '';
+
+    toGrade.forEach(s=>{ s.status='pending'; s.errorMsg=''; });
+    renderProgress(toGrade);
+
+    for(const st of toGrade){
+      st.status = 'grading';
+      renderProgress(toGrade);
+      try{
+        st.results = await gradeOneStudent(st);
+        st.status = 'done';
+      }catch(err){
+        st.status = 'error';
+        st.errorMsg = err.message;
+      }
+      renderProgress(toGrade);
+    }
+
+    btnGrade.disabled = false;
+    renderStepper();
+    renderAllResults();
+  }
+
+  function renderProgress(list){
+    const icons = {pending:'⏳', grading:'✏️', done:'✅', error:'⚠️'};
+    const labels = {pending:'ממתין', grading:'בבדיקה...', done:'הושלם', error:'שגיאה'};
+    progressSlot.innerHTML = `<div class="progress-list">` + list.map(st=>`
+      <div class="progress-item status-${st.status}">
+        <span class="status-icon">${icons[st.status]}</span>
+        <span class="p-name">${escapeHtml(st.name || 'סטודנט ללא שם')}</span>
+        <span>${labels[st.status]}${st.status==='error' ? ' — '+escapeHtml(st.errorMsg) : ''}</span>
+      </div>
+    `).join('') + `</div>`;
+  }
+
+  function computeTotals(results){
+    let maxSum=0, awardedSum=0;
+    results.questions.forEach(q=>q.sections.forEach(s=>{
+      maxSum += Number(s.max_points)||0;
+      awardedSum += Number(s.awarded_points)||0;
+    }));
+    return {maxSum, awardedSum};
+  }
+
+  function renderAllResults(){
+    const done = state.students.filter(s=>s.status==='done');
+    if(done.length===0){ resultsSlot.innerHTML=''; return; }
+
+    let html = `<div class="card">`;
+    html += `<h2 style="margin-bottom:14px;"><span class="badge">3</span> סיכום כיתתי</h2>`;
+    html += `<table class="summary-table"><thead><tr><th>#</th><th>סטודנט</th><th>ציון</th></tr></thead><tbody>`;
+    done.forEach((st, idx)=>{
+      const {awardedSum} = computeTotals(st.results);
+      html += `<tr class="summary-row" data-jump="student-${st.id}"><td>${idx+1}</td><td>${escapeHtml(st.name || 'סטודנט ללא שם')}</td><td class="score-cell">${round1(awardedSum)}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+    html += `<div class="actions-row no-print"><button class="btn ghost small" id="btn-export-all">ייצוא כל הכיתה לאקסל</button><button class="btn ghost small" id="btn-print-all">הדפסה / שמירה כ-PDF</button></div>`;
+    html += `</div>`;
+
+    done.forEach((st)=>{ html += renderStudentResultBlock(st); });
+
+    resultsSlot.innerHTML = html;
+
+    resultsSlot.querySelectorAll('.summary-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const target = document.getElementById(row.dataset.jump);
+        if(target){ target.open = true; target.scrollIntoView({behavior:'smooth', block:'start'}); }
+      });
+    });
+
+    done.forEach(st=>wireStudentResultBlock(st));
+
+    $('#btn-export-all').addEventListener('click', exportAllExcel);
+    $('#btn-print-all').addEventListener('click', ()=>window.print());
+  }
+
+  function renderStudentResultBlock(st){
+    const {maxSum, awardedSum} = computeTotals(st.results);
+    let html = `<details class="student-result" id="student-${st.id}" data-sid="${st.id}">`;
+    html += `<summary>
+      <div class="stamp mini"><div class="score">${round1(awardedSum)}</div><div class="of100">/100</div></div>
+      <span class="sname">${escapeHtml(st.name || 'סטודנט ללא שם')}</span>
+      <span class="arrow">▶</span>
+    </summary>`;
+    html += `<div class="det-body">`;
+    if(Math.round(maxSum) !== 100){
+      html += `<div class="warn-note">שימו לב: סך הניקוד במחוון הוא ${round1(maxSum)} ולא 100 — ייתכן שכדאי לבדוק את המחוון.</div>`;
+    }
+    st.results.questions.forEach((q, qi)=>{
+      const qMax = q.sections.reduce((a,s)=>a+(Number(s.max_points)||0),0);
+      html += `<div class="q-block">
+        <div class="q-head">
+          <div class="q-title">שאלה ${escapeHtml(q.number)}${q.topic ? ' — '+escapeHtml(q.topic) : ''}</div>
+          <div class="q-total" data-sid="${st.id}" data-qtotal="${qi}">— / ${round1(qMax)}</div>
+        </div>`;
+      q.sections.forEach((s, si)=>{
+        html += `<div class="sec-row">
+          <div class="sec-label">${escapeHtml(s.label)}</div>
+          <textarea class="sec-comment" placeholder="ניקוד מלא — אין הערה" data-sid="${st.id}" data-q="${qi}" data-s="${si}">${escapeHtml(s.comment)}</textarea>
+          <div class="sec-points">
+            <input type="number" step="0.5" value="${s.awarded_points}" data-sid="${st.id}" data-q="${qi}" data-s="${si}">
+            <span class="max">/ ${round1(s.max_points)}</span>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+    html += `<div class="general-note">
+      <label>הערה כללית</label>
+      <textarea data-sid="${st.id}" data-role="general">${escapeHtml(st.results.general_comment)}</textarea>
+    </div>`;
+    html += `<div class="actions-row no-print"><button class="btn ghost small" data-role="export-one" data-sid="${st.id}">ייצוא לאקסל</button></div>`;
+    html += `</div></details>`;
+    return html;
+  }
+
+  function wireStudentResultBlock(st){
+    const scope = document.getElementById(`student-${st.id}`);
+    if(!scope) return;
+    scope.querySelectorAll('.sec-points input').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        const q = parseInt(e.target.dataset.q), s = parseInt(e.target.dataset.s);
+        let val = parseFloat(e.target.value);
+        if(isNaN(val)) val = 0;
+        st.results.questions[q].sections[s].awarded_points = val;
+        updateStudentTotals(st);
+      });
+    });
+    const exportBtn = scope.querySelector('[data-role="export-one"]');
+    if(exportBtn) exportBtn.addEventListener('click', ()=>exportStudentExcel(st));
+    updateStudentTotals(st);
+  }
+
+  function updateStudentTotals(st){
+    const scope = document.getElementById(`student-${st.id}`);
+    if(!scope) return;
+    let grand = 0;
+    st.results.questions.forEach((q, qi)=>{
+      const sum = q.sections.reduce((a,s)=>a+(Number(s.awarded_points)||0),0);
+      const max = q.sections.reduce((a,s)=>a+(Number(s.max_points)||0),0);
+      const el = scope.querySelector(`[data-qtotal="${qi}"]`);
+      if(el) el.textContent = `${round1(sum)} / ${round1(max)}`;
+      grand += sum;
+    });
+    const stampScore = scope.querySelector('summary .stamp .score');
+    if(stampScore) stampScore.textContent = round1(grand);
+    const summaryCell = document.querySelector(`.summary-row[data-jump="student-${st.id}"] .score-cell`);
+    if(summaryCell) summaryCell.textContent = round1(grand);
+  }
+
+  function syncCommentsBeforeExport(st){
+    const scope = document.getElementById(`student-${st.id}`);
+    if(!scope) return;
+    scope.querySelectorAll('.sec-comment').forEach(ta=>{
+      const q = parseInt(ta.dataset.q), s = parseInt(ta.dataset.s);
+      st.results.questions[q].sections[s].comment = ta.value;
+    });
+    const gc = scope.querySelector('[data-role="general"]');
+    if(gc) st.results.general_comment = gc.value;
+  }
+
+  function studentRows(st){
+    const rows = [];
+    st.results.questions.forEach(q=>{
+      q.sections.forEach(s=>{
+        rows.push({
+          'שאלה': q.number, 'נושא': q.topic, 'סעיף': s.label,
+          'ניקוד מקסימלי': s.max_points, 'ניקוד שניתן': s.awarded_points, 'הערה': s.comment
+        });
+      });
+    });
+    const {awardedSum, maxSum} = computeTotals(st.results);
+    rows.push({'שאלה':'', 'נושא':'', 'סעיף':'', 'ניקוד מקסימלי':round1(maxSum), 'ניקוד שניתן':round1(awardedSum), 'הערה':'ציון סופי'});
+    return rows;
+  }
+
+  function exportStudentExcel(st){
+    syncCommentsBeforeExport(st);
+    const ws = XLSX.utils.json_to_sheet(studentRows(st));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ציון");
+    const name = (st.name || 'תלמיד').replace(/[^א-תa-zA-Z0-9 ]/g,'').trim() || 'תלמיד';
+    XLSX.writeFile(wb, `בדיקת_מבחן_${name}.xlsx`);
+  }
+
+  function exportAllExcel(){
+    const done = state.students.filter(s=>s.status==='done');
+    done.forEach(st=>syncCommentsBeforeExport(st));
+
+    const wb = XLSX.utils.book_new();
+    const summaryRows = done.map((st, idx)=>{
+      const {awardedSum} = computeTotals(st.results);
+      return {'#': idx+1, 'שם סטודנט': st.name || 'סטודנט ללא שם', 'ציון סופי': round1(awardedSum)};
+    });
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb, wsSummary, "סיכום");
+
+    const usedNames = {};
+    done.forEach(st=>{
+      let base = (st.name || 'תלמיד').replace(/[^א-תa-zA-Z0-9 ]/g,'').trim() || 'תלמיד';
+      let sheetName = base.slice(0,28) || 'תלמיד';
+      let n = usedNames[sheetName] || 0;
+      usedNames[sheetName] = n+1;
+      if(n>0) sheetName = (sheetName.slice(0,25) + '_' + (n+1));
+      const ws = XLSX.utils.json_to_sheet(studentRows(st));
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+    XLSX.writeFile(wb, `בדיקת_מבחנים_כיתה.xlsx`);
+  }
+
+  function resetAll(){
+    state.manhal = null;
+    state.students = [];
+    renderManhalChip();
+    renderStudents();
+    clearError();
+    progressSlot.innerHTML = '';
+    resultsSlot.innerHTML = '';
+    renderStepper();
+    addStudent();
+  }
+
+  function round1(n){
+    n = Number(n)||0;
+    return (Math.round(n*10)/10).toString();
+  }
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;');
+  }
+
+  addStudent();
+  renderStepper();
+})();
+</script>
+</body>
+</html>
