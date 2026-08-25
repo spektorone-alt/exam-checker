@@ -392,6 +392,11 @@
 
 <script>
 (function(){
+  // ==== הגדרת חיבור ====
+  // אחרי פריסת ה-Google Apps Script (ראו את קובץ ה-Code.gs הנלווה), הדביקו כאן את
+  // כתובת ה-Web App שקיבלתם (מסתיימת ב-/exec).
+  const GAS_WEBHOOK_URL = "";
+
   const state = { manhal:null, students:[] };
   let idSeq = 1;
 
@@ -756,9 +761,14 @@
     });
     content.push({type:'text', text: buildPrompt()});
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    if(!GAS_WEBHOOK_URL){
+      throw new Error('לא הוגדרה כתובת שרת הבדיקה. יש להשלים את GAS_WEBHOOK_URL בתחילת הקוד לאחר פריסת ה-Google Apps Script.');
+    }
+
+    // Sent without a Content-Type header (defaults to text/plain) so the browser treats this
+    // as a "simple request" and skips a CORS preflight, which Google Apps Script doPost doesn't handle.
+    const response = await fetch(GAS_WEBHOOK_URL, {
       method:"POST",
-      headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
         model:"claude-sonnet-4-6",
         max_tokens: 8000,
@@ -767,6 +777,10 @@
     });
     if(!response.ok) throw new Error('שגיאת שרת ('+response.status+')');
     const data = await response.json();
+    if(data.error){
+      const msg = typeof data.error === 'string' ? data.error : (data.error.message || JSON.stringify(data.error));
+      throw new Error('שגיאת API: '+msg);
+    }
     const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
     const parsed = parseGradingJson(textBlocks);
     if(!parsed) throw new Error('לא ניתן היה לפרש את תשובת המערכת');
